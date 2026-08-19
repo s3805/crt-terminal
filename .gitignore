@@ -1,0 +1,15 @@
+# dependencies
+node_modules/
+
+# build artifacts
+CRT-1990.app/
+AppIcon.icns
+AppIcon_1024.png
+AppIcon.iconset/
+
+# local runtime
+.chrome-profile/
+*.log
+
+# OS
+.DS_Store

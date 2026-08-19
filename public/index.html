@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GREEN PHOSPHOR TERMINAL — MODEL CRT-1990</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/vendor/xterm/css/xterm.css" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div id="monitor">
+    <div id="bezel">
+      <div id="crt">
+        <!-- The real terminal (POST sequence prints into this same screen) -->
+        <div id="terminal"></div>
+        <!-- CRT effect layers -->
+        <div class="layer scanlines"></div>
+        <div class="layer dotmatrix"></div>
+        <div class="layer vignette"></div>
+        <div class="layer flicker"></div>
+        <div class="layer glass"></div>
+        <!-- Keyboard-activation hint (hidden once focused) -->
+        <div id="hint">▸ 点击屏幕任意处激活键盘 / CLICK TO ACTIVATE KEYBOARD</div>
+      </div>
+      <div id="panel">
+        <div class="led"></div>
+        <span class="model">CRT-1990 · GREEN PHOSPHOR</span>
+        <span class="spacer"></span>
+        <span class="stat" id="baud">9600 BAUD</span>
+        <span class="stat" id="status">● ONLINE</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="/vendor/xterm/lib/xterm.js"></script>
+  <script src="/vendor/addon-fit/lib/addon-fit.js"></script>
+  <script src="/terminal.js"></script>
+</body>
+</html>
