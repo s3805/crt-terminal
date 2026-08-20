@@ -214,7 +214,9 @@ function initTerminal() {
       // land on screen after the POST animation finishes.
       postBuffer = [];
       if (!booting) {
-        term.write('\r\n\x1b[31m*** CONNECTION CLOSED — restart with: node server.js ***\x1b[0m\r\n');
+        // The client retries automatically (see connect() below), so say so —
+        // "restart the server" would be misleading advice.
+        term.write('\r\n\x1b[33m*** 连接中断 / CONNECTION LOST — 自动重连中… ***\x1b[0m\r\n');
       }
       setTimeout(connect, 3000); // auto-retry
     };
