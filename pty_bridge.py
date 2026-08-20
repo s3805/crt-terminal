@@ -21,6 +21,7 @@ SHELL = os.environ.get("SHELL", "/bin/bash")
 COLS = int(os.environ.get("INIT_COLS", "80"))
 ROWS = int(os.environ.get("INIT_ROWS", "24"))
 CTRL_FD = 3  # resize control channel (parent -> child)
+ctrl_buf = b""  # line buffer: a resize may arrive split across reads
 
 
 def dbg(msg):
@@ -34,11 +35,19 @@ def dbg(msg):
 pid, master_fd = pty.fork()
 
 if pid == 0:
-    # Child: already has the pty as controlling terminal (0,1,2)
+    # Child: already has the pty as controlling terminal (0,1,2).
+    # Run as a LOGIN + interactive shell for shells that support it, so the
+    # user's profile (~/.zprofile/~/.zshrc, ~/.bash_profile) loads and PATH
+    # resolves exactly like a normal terminal window.
     env = dict(os.environ)
     env["TERM"] = "xterm-256color"
-    dbg("child exec " + SHELL)
-    os.execvpe(SHELL, [SHELL, "-i"], env)
+    base = os.path.basename(SHELL)
+    if base in ("bash", "zsh", "ksh"):
+        argv = [SHELL, "-l", "-i"]
+    else:
+        argv = [SHELL, "-i"]
+    dbg("child exec " + " ".join(argv))
+    os.execvpe(SHELL, argv, env)
     os._exit(127)
 
 # Parent
@@ -81,17 +90,22 @@ try:
             os.write(master_fd, data)
         if CTRL_FD in r:
             try:
-                line = os.read(CTRL_FD, 256)
+                chunk = os.read(CTRL_FD, 256)
             except OSError:
-                line = b""
-            if not line:
+                chunk = b""
+            if not chunk:
                 continue
-            try:
-                parts = line.decode().split()
-                if len(parts) == 2:
-                    set_winsize(int(parts[0]), int(parts[1]))
-            except (ValueError, OSError):
-                pass
+            # Only act on complete "ROWS COLS\n" lines, otherwise a partial
+            # read like b"2" + b"4 80\n" could be parsed as a bogus size.
+            ctrl_buf += chunk
+            while b"\n" in ctrl_buf:
+                line, ctrl_buf = ctrl_buf.split(b"\n", 1)
+                try:
+                    parts = line.decode().split()
+                    if len(parts) == 2:
+                        set_winsize(int(parts[0]), int(parts[1]))
+                except (ValueError, OSError):
+                    pass
 except (OSError, ValueError):
     pass
 finally:

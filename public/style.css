@@ -4,6 +4,14 @@
   --screen-bg: #020a04;
   --bezel: #1a1d18;
   --bezel-edge: #2c3028;
+  /* Themable effect knobs (switched per display style, see terminal.js) */
+  --glow-rgb: 51,255,102;   /* phosphor glow color, "r,g,b" */
+  --beam-rgb: 190,255,205;  /* refresh beam tint */
+  --scan-o: .9;             /* scanline strength */
+  --beam-o: 1;              /* refresh beam strength */
+  --dot-o: .12;             /* shadow-mask grid strength */
+  --noise-o: .05;           /* static noise strength */
+  --ambient-o: .06;         /* light spill onto the bezel */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -11,7 +19,7 @@
 html, body {
   height: 100%;
   background: #0a0c0a;
-  font-family: 'VT323', 'Courier New', monospace;
+  font-family: 'Menlo', 'Monaco', 'PingFang SC', monospace;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -50,22 +58,47 @@ html, body {
   position: relative;
   flex: 1;
   background: var(--screen-bg);
-  border-radius: 14px / 20px;
+  /* Rounded tube corners + a slight outward bulge so the edges read as a
+     curved glass surface rather than a flat rectangle. */
+  border-radius: 22px / 30px;
   overflow: hidden;
   box-shadow:
-    inset 0 0 90px rgba(51,255,102,.10),
-    inset 0 0 14px rgba(0,0,0,.9);
-  /* slight barrel curvature illusion */
-  transform: perspective(1400px) rotateX(0.4deg);
+    inset 0 0 90px rgba(var(--glow-rgb),.10),
+    inset 0 0 14px rgba(0,0,0,.9),
+    inset 0 0 130px rgba(0,0,0,.55),
+    0 0 70px rgba(var(--glow-rgb), var(--ambient-o)); /* ambient light spill onto the bezel */
+  /* Barrel curvature now comes from the SVG displacement filter on #warp;
+     a hair of extra scale hides any 1px edge artifacts from the warp. */
+  transform: scale(1.012);
+  transform-origin: center center;
 }
 
-/* xterm container fills the glass */
-#terminal {
+/* The warped tube face — terminal + all effect layers bend together. */
+#warp {
   position: absolute;
   inset: 0;
+  will-change: filter;
+  /* Applied by terminal.js once the displacement map is generated:
+     filter: url(#crtWarp); */
+}
+
+/* Overscanned screen area: bleeds past the visible glass by --overscan so
+   the convex warp can sample from beyond the tube face. terminal.js sets
+   --overscan from the warp strength. */
+#screen {
+  position: absolute;
+  inset: var(--overscan, 0px);
+}
+
+/* xterm container fills the (overscanned) screen */
+#terminal {
+  position: relative;
+  width: 100%;
+  height: 100%;
   padding: 10px 14px;
   z-index: 2;
 }
+
 #terminal .xterm {
   height: 100%;
   padding: 0;
@@ -80,64 +113,160 @@ html, body {
 /* ===== Effect layers ===== */
 .layer {
   position: absolute;
-  inset: 0;
+  /* Bleed with the overscan so the warp can sample effects past the glass */
+  inset: var(--overscan, 0px);
   pointer-events: none;
   border-radius: inherit;
 }
 
-/* Fine horizontal scanlines */
+/* Fine horizontal scanlines — triangle luminance profile like a real raster
+   gap (cool-retro-term's mask: 1-abs(fract(y*res)*2-1)), not hard bands. */
 .scanlines {
   background: repeating-linear-gradient(
     to bottom,
     rgba(0,0,0,0) 0px,
-    rgba(0,0,0,0) 2px,
-    rgba(0,0,0,.28) 3px,
-    rgba(0,0,0,.28) 3px
+    rgba(0,0,0,0) 1px,
+    rgba(0,0,0,.30) 2.6px,
+    rgba(0,0,0,0) 4px
   );
   mix-blend-mode: multiply;
   z-index: 5;
+  opacity: var(--scan-o);
 }
 
-/* Dot-matrix / shadow-mask grid (makes text read as discrete phosphor dots).
-   Grid is enlarged and softened so CJK glyphs with complex strokes still
-   remain legible instead of looking "clumped". */
+/* A brighter scan band that slowly sweeps top→bottom, like the electron
+   beam refreshing the phosphor. */
+.scanbeam {
+  background: linear-gradient(
+    to bottom,
+    rgba(var(--beam-rgb),0) 0%,
+    rgba(var(--beam-rgb),.10) 46%,
+    rgba(var(--beam-rgb),.22) 50%,
+    rgba(var(--beam-rgb),.10) 54%,
+    rgba(var(--beam-rgb),0) 100%);
+  height: 26%;
+  width: 100%;
+  position: absolute;
+  top: -26%;
+  left: 0;
+  z-index: 6;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  opacity: var(--beam-o);
+  animation: scanmove 13s linear infinite;
+}
+@keyframes scanmove {
+  0%   { top: -26%; }
+  100% { top: 100%; }
+}
+
+/* Dot-matrix / shadow-mask grid. Authentic MONO phosphor terminals (Apple ][,
+   IBM 3278 in cool-retro-term's presets) show almost no dot grid — that mask
+   belongs to color CRTs — so keep this barely visible. */
 .dotmatrix {
-  background-image: radial-gradient(rgba(0,0,0,.34) 1px, transparent 1.8px);
+  background-image: radial-gradient(rgba(0,0,0,.30) 1px, transparent 1.8px);
   background-size: 4px 4px;
-  opacity: .38;
+  opacity: var(--dot-o);
   mix-blend-mode: multiply;
   z-index: 6;
+}
+
+/* Live static noise / grain (their "staticNoise" ~0.1): an SVG turbulence
+   texture jumping position every few frames, faded toward the screen center
+   the way noise behaves on a real tube. */
+.noise {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='260' height='260' filter='url(%23n)' opacity='0.55'/></svg>");
+  background-size: 260px 260px;
+  opacity: var(--noise-o);
+  mix-blend-mode: screen;
+  z-index: 6;
+  -webkit-mask-image: radial-gradient(ellipse at center, transparent 45%, black 100%);
+  mask-image: radial-gradient(ellipse at center, transparent 45%, black 100%);
+  animation: grain .6s steps(1) infinite;
+}
+@keyframes grain {
+  0%   { background-position: 0 0; }
+  20%  { background-position: -60px 40px; }
+  40%  { background-position: 50px -70px; }
+  60%  { background-position: -40px -50px; }
+  80%  { background-position: 70px 60px; }
+  100% { background-position: 0 0; }
 }
 
 /* Vignette + corner darkening like a real tube */
 .vignette {
   background:
     radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.45) 100%),
-    linear-gradient(120deg, rgba(51,255,102,.04), transparent 40%);
+    linear-gradient(120deg, rgba(var(--glow-rgb),.04), transparent 40%);
   z-index: 7;
 }
 
-/* Subtle flicker / refresh instability */
+/* Subtle flicker / refresh instability — irregular multi-step brightness,
+   like their per-frame noise-driven flicker rather than a metronome. */
 .flicker {
-  background: rgba(51,255,102,.025);
+  background: rgba(var(--glow-rgb),.025);
   z-index: 8;
-  animation: flick 5.5s infinite steps(60);
+  animation: flick 4.7s infinite steps(1);
 }
 @keyframes flick {
-  0%, 98%   { opacity: .25; }
-  98.5%     { opacity: .55; }
-  99%       { opacity: .15; }
-  99.5%     { opacity: .6; }
-  100%      { opacity: .25; }
+  0%   { opacity: .22; }
+  28%  { opacity: .30; }
+  52%  { opacity: .18; }
+  74%  { opacity: .28; }
+  92%  { opacity: .50; }
+  96%  { opacity: .12; }
+  100% { opacity: .22; }
 }
 
 /* Glass curvature highlight */
 .glass {
   background:
     radial-gradient(120% 80% at 50% -10%, rgba(255,255,255,.06), transparent 45%),
-    radial-gradient(80% 60% at 80% 110%, rgba(51,255,102,.05), transparent 50%);
+    radial-gradient(80% 60% at 80% 110%, rgba(var(--glow-rgb),.05), transparent 50%);
   z-index: 9;
 }
+
+/* Theme-switch toast (shows the current style name briefly) */
+#toast {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  padding: 6px 16px;
+  border: 1px solid rgba(var(--glow-rgb), .5);
+  border-radius: 4px;
+  background: rgba(0,0,0,.75);
+  color: var(--phosphor);
+  font-size: 14px;
+  letter-spacing: 2px;
+  text-shadow: 0 0 8px rgba(var(--glow-rgb), .7);
+  opacity: 0;
+  transition: opacity .25s;
+  pointer-events: none;
+}
+#toast.show { opacity: 1; }
+
+/* On-screen style-switch chip (top-right of the glass) */
+#stylechip {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 28;
+  padding: 5px 12px;
+  border: 1px solid rgba(var(--glow-rgb), .45);
+  border-radius: 4px;
+  background: rgba(0,0,0,.65);
+  color: var(--phosphor);
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-shadow: 0 0 6px rgba(var(--glow-rgb), .6);
+  cursor: pointer;
+  user-select: none;
+  opacity: .55;
+  transition: opacity .2s;
+}
+#stylechip:hover { opacity: 1; }
 
 /* ===== Keyboard-lock hint (shown until the screen is focused) ===== */
 #hint {
@@ -161,6 +290,11 @@ html, body {
 
 /* ===== Front panel ===== */
 #panel {
+  /* #crt is scaled 1.025 for the curvature illusion and its transformed hit
+     area spills over the panel below — raise the panel so its controls stay
+     clickable. */
+  position: relative;
+  z-index: 10;
   height: 3.4vh;
   min-height: 26px;
   margin-top: .8vh;
@@ -179,7 +313,12 @@ html, body {
   box-shadow: 0 0 8px var(--phosphor), 0 0 2px #fff;
   animation: blink 2.4s steps(1) infinite;
 }
-.model { color: #9aa890; }
+.model {
+  color: #9aa890;
+  cursor: pointer;
+  user-select: none;
+}
+.model:hover { color: var(--phosphor); }
 .spacer { flex: 1; }
 .stat { color: var(--phosphor-dim); }
 #status { color: var(--phosphor); }

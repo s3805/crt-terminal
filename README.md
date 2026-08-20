@@ -9,7 +9,7 @@
 - 开机 POST 自检动画,直接打印进真实终端屏幕(无覆盖层,无 z-index 竞态)
 - 实时窗口尺寸同步:`TIOCSWINSZ` 随窗口 reflow(vim / less 同步适配)
 - 中文支持:CJK 字体回退 + full-width 单元格,不乱码不塌陷
-- 仅监听 `127.0.0.1`,拒绝非回环连接
+- 仅监听 `127.0.0.1`,拒绝非回环连接,并校验 WebSocket `Origin`(防止浏览器中的恶意网页跨域连入本地 shell)
 
 ## 运行
 
@@ -40,7 +40,9 @@ public/
   style.css        # CRT 视觉效果
   terminal.js      # xterm.js 接线 + POST 开机动画
 build_icon.py      # 生成 AppIcon_1024.png(PIL)
+build-app.sh       # 一键重建 .app:重新生成图标并同步 runtime 副本
 open-app.sh        # macOS 独立窗口启动脚本
+stop.sh            # 按端口停止后端(默认 7681,可用 CRT_PORT 覆盖)
 ```
 
 ## 备注
@@ -53,4 +55,4 @@ open-app.sh        # macOS 独立窗口启动脚本
 
 - 后端:`server.js` 中 `findShell()` 优先使用 `/bin/bash`,避免 zsh ZLE 在 PTY 桥下的行为问题
 - 缩放:浏览器 `ResizeObserver` → WebSocket `{type:'resize'}` → fd3 → `TIOCSWINSZ`
-- 安全:仅接受 `127.0.0.1` / `::1` WebSocket 连接
+- 安全:仅接受 `127.0.0.1` / `::1` WebSocket 连接,且只允许本服务的 `Origin`(无 `Origin` 的非浏览器客户端不受影响)

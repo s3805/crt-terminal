@@ -1,5 +1,6 @@
 # dependencies
 node_modules/
+__pycache__/
 
 # build artifacts
 CRT-1990.app/
@@ -10,6 +11,9 @@ AppIcon.iconset/
 # local runtime
 .chrome-profile/
 *.log
+
+# local agent/tooling config (machine-specific, not part of the project)
+reasonix.toml
 
 # OS
 .DS_Store

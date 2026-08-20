@@ -11,43 +11,95 @@
    no z-index / display / timing race that can blank the screen.
    ========================================================= */
 
-const WS_HOST = '127.0.0.1:7681';
+// Derive the WebSocket host from the page URL so a custom PORT env on the
+// server keeps working; fall back for exotic embeds that report no host.
+const WS_HOST = window.location.host || '127.0.0.1:7681';
+
+/* =========================================================
+   Display styles — presets tuned after cool-retro-term's
+   built-in profiles (Amber / Apple ][ / IBM 3278 / ...).
+   Each style drives the xterm color theme AND the CRT effect
+   knobs (CSS variables): glow tint, scanline / noise / beam /
+   ambient-light intensity.
+   Switch with Ctrl+Shift+K or by clicking the panel model name.
+   ========================================================= */
+const THEMES = [
+  {
+    label: 'GREEN PHOSPHOR',
+    css: { '--phosphor': '#33ff66', '--phosphor-dim': '#1f9c3f', '--screen-bg': '#020a04', '--glow-rgb': '51,255,102', '--beam-rgb': '190,255,205', '--scan-o': '.9', '--beam-o': '1', '--dot-o': '.12', '--noise-o': '.05', '--ambient-o': '.06' },
+    colors: { bg: '#020a04', fg: '#33ff66', bright: '#7dffa6', dim: '#1c5e30', black: '#0b1a0f', white: '#bdf5c8', brightWhite: '#e8ffea' },
+  },
+  {
+    label: 'AMBER PHOSPHOR',
+    css: { '--phosphor': '#ffb000', '--phosphor-dim': '#b87a00', '--screen-bg': '#0a0402', '--glow-rgb': '255,176,0', '--beam-rgb': '255,225,170', '--scan-o': '.9', '--beam-o': '1', '--dot-o': '.12', '--noise-o': '.05', '--ambient-o': '.07' },
+    colors: { bg: '#0a0402', fg: '#ffb000', bright: '#ffd24a', dim: '#6e4a00', black: '#1a1005', white: '#f2ddb0', brightWhite: '#fff3d6' },
+  },
+  {
+    label: 'APPLE ][ GREEN',
+    css: { '--phosphor': '#4dff6b', '--phosphor-dim': '#2fb84f', '--screen-bg': '#001100', '--glow-rgb': '77,255,107', '--beam-rgb': '200,255,210', '--scan-o': '.95', '--beam-o': '1', '--dot-o': '.12', '--noise-o': '.07', '--ambient-o': '.10' },
+    colors: { bg: '#001100', fg: '#4dff6b', bright: '#a8ffc0', dim: '#145c26', black: '#04150a', white: '#c8ffd4', brightWhite: '#eafff0' },
+  },
+  {
+    label: 'DEEP BLUE',
+    css: { '--phosphor': '#7fb4ff', '--phosphor-dim': '#4a7ac0', '--screen-bg': '#000814', '--glow-rgb': '127,180,255', '--beam-rgb': '210,230,255', '--scan-o': '.9', '--beam-o': '1', '--dot-o': '.12', '--noise-o': '.04', '--ambient-o': '.07' },
+    colors: { bg: '#000814', fg: '#7fb4ff', bright: '#bcd8ff', dim: '#1d3a66', black: '#050d1a', white: '#cfe2ff', brightWhite: '#ecf4ff' },
+  },
+  {
+    label: 'NEON CYAN',
+    css: { '--phosphor': '#52f7ff', '--phosphor-dim': '#2fb3bd', '--screen-bg': '#001018', '--glow-rgb': '82,247,255', '--beam-rgb': '220,255,255', '--scan-o': '.9', '--beam-o': '1', '--dot-o': '.12', '--noise-o': '.05', '--ambient-o': '.08' },
+    colors: { bg: '#001018', fg: '#52f7ff', bright: '#aefcff', dim: '#14545c', black: '#051318', white: '#d2fbff', brightWhite: '#ecffff' },
+  },
+  {
+    // cool-retro-term's "IBM 3278 Reborn": a clean modern tube — no noise,
+    // faint scanlines, no beam, no mask, minimal glow.
+    label: 'IBM 3278 CLEAN',
+    css: { '--phosphor': '#3cff7a', '--phosphor-dim': '#1c8a44', '--screen-bg': '#000000', '--glow-rgb': '60,255,122', '--beam-rgb': '200,255,215', '--scan-o': '.4', '--beam-o': '0', '--dot-o': '0', '--noise-o': '0', '--ambient-o': '.03' },
+    colors: { bg: '#000000', fg: '#3cff7a', bright: '#8dffb4', dim: '#14532d', black: '#061207', white: '#c2ffd6', brightWhite: '#e6fff0' },
+  },
+];
+
+// Build a full 16-color xterm palette around a phosphor tint; accent hues
+// stay standard (muted) so `ls` colors etc. remain distinguishable.
+function buildXtermTheme(c) {
+  return {
+    background: c.bg,
+    foreground: c.fg,
+    cursor: c.bright,
+    cursorAccent: c.bg,
+    selectionBackground: c.dim,
+    black: c.black,
+    red: '#ff5c5c',
+    green: c.fg,
+    yellow: '#ffd24a',
+    blue: '#4aa3ff',
+    magenta: '#c77dff',
+    cyan: '#3ef0d0',
+    white: c.white,
+    brightBlack: c.dim,
+    brightRed: '#ff8585',
+    brightGreen: c.bright,
+    brightYellow: '#ffe488',
+    brightBlue: '#84c4ff',
+    brightMagenta: '#dda6ff',
+    brightCyan: '#88f5e0',
+    brightWhite: c.brightWhite,
+  };
+}
 
 function initTerminal() {
   const term = new Terminal({
-    fontSize: 20,
-    // VT323 only covers Latin glyphs. Add real monospace CJK fallbacks so
-    // Chinese characters keep cell alignment and don't collapse/overlap.
-    fontFamily: "'VT323', 'Sarasa Mono SC', 'Noto Sans Mono CJK SC', 'WenQuanYi Micro Hei Mono', 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace",
+    fontSize: 18,
+    // Menlo is macOS's classic Terminal.app face: smooth vector rendering
+    // (no pixelated bitmap look) while keeping the monospace CRT feel.
+    // PingFang SC etc. cover CJK so Chinese keeps full-cell alignment.
+    fontFamily: "'Menlo', 'Monaco', 'Sarasa Mono SC', 'PingFang SC', 'Noto Sans Mono CJK SC', 'WenQuanYi Micro Hei Mono', monospace",
     lineHeight: 1.25,
-    letterSpacing: 0.5,
+    letterSpacing: 0,
     cursorBlink: true,
     cursorStyle: 'block',
     scrollback: 3000,
     allowProposedApi: true,
-    theme: {
-      background: '#020a04',
-      foreground: '#33ff66',
-      cursor: '#7dffa6',
-      cursorAccent: '#020a04',
-      selectionBackground: '#1c5e30',
-      black: '#0b1a0f',
-      red: '#ff5c5c',
-      green: '#33ff66',
-      yellow: '#ffd24a',
-      blue: '#4aa3ff',
-      magenta: '#c77dff',
-      cyan: '#3ef0d0',
-      white: '#bdf5c8',
-      brightBlack: '#1f3a26',
-      brightRed: '#ff8585',
-      brightGreen: '#7dffa6',
-      brightYellow: '#ffe488',
-      brightBlue: '#84c4ff',
-      brightMagenta: '#dda6ff',
-      brightCyan: '#88f5e0',
-      brightWhite: '#e8ffea',
-    },
+    theme: buildXtermTheme(THEMES[0].colors),
   });
 
   const fit = new FitAddon.FitAddon();
@@ -57,6 +109,48 @@ function initTerminal() {
   const statusEl = document.getElementById('status');
   const baudEl = document.getElementById('baud');
   const hintEl = document.getElementById('hint');
+  const modelEl = document.getElementById('model');
+  const toastEl = document.getElementById('toast');
+
+  // --- Display-style switching (persisted across sessions) ---
+  let themeIndex = 0;
+  try {
+    themeIndex = parseInt(localStorage.getItem('crt-theme') || '0', 10) || 0;
+    if (themeIndex < 0 || themeIndex >= THEMES.length) themeIndex = 0;
+  } catch (e) {}
+
+  function applyTheme(i, announce) {
+    themeIndex = ((i % THEMES.length) + THEMES.length) % THEMES.length;
+    const t = THEMES[themeIndex];
+    const root = document.documentElement.style;
+    Object.entries(t.css).forEach(([k, v]) => root.setProperty(k, v));
+    term.options.theme = buildXtermTheme(t.colors);
+    if (modelEl) modelEl.textContent = 'CRT-1990 · ' + t.label;
+    try { localStorage.setItem('crt-theme', String(themeIndex)); } catch (e) {}
+    if (announce && toastEl) {
+      toastEl.textContent = '◈ ' + t.label;
+      toastEl.classList.add('show');
+      clearTimeout(applyTheme._timer);
+      applyTheme._timer = setTimeout(() => toastEl.classList.remove('show'), 1200);
+    }
+  }
+  applyTheme(themeIndex, false);
+
+  // Ctrl+Shift+K cycles styles; the combo never reaches the shell.
+  term.attachCustomKeyEventHandler((ev) => {
+    if (ev.type === 'keydown' && ev.ctrlKey && ev.shiftKey && !ev.altKey && !ev.metaKey && ev.code === 'KeyK') {
+      applyTheme(themeIndex + 1, true);
+      return false;
+    }
+    return true;
+  });
+  // Clicking the panel model name cycles too.
+  if (modelEl) modelEl.addEventListener('click', () => applyTheme(themeIndex + 1, true));
+  const chipEl = document.getElementById('stylechip');
+  if (chipEl) chipEl.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    applyTheme(themeIndex + 1, true);
+  });
 
   let ws = null;
   let wsReady = false;
@@ -68,15 +162,18 @@ function initTerminal() {
     try { fit.fit(); } catch (e) {}
   }
   doFit();
+  applyCrtWarp();
 
   // Re-fit and resize the PTY whenever the glass changes size.
   const ro = new ResizeObserver(() => {
     doFit();
+    scheduleCrtWarp();
     if (wsReady) ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
   });
   ro.observe(document.getElementById('crt'));
   window.addEventListener('resize', () => {
     doFit();
+    scheduleCrtWarp();
     if (wsReady) ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
   });
   if (document.fonts && document.fonts.ready) {
@@ -113,6 +210,9 @@ function initTerminal() {
     ws.onclose = () => {
       wsReady = false;
       statusEl.textContent = '● OFFLINE';
+      // Drop output buffered from the dead connection so stale bytes don't
+      // land on screen after the POST animation finishes.
+      postBuffer = [];
       if (!booting) {
         term.write('\r\n\x1b[31m*** CONNECTION CLOSED — restart with: node server.js ***\x1b[0m\r\n');
       }
@@ -156,11 +256,93 @@ function initTerminal() {
 
   function finishBoot() {
     booting = false;
-    for (const chunk of postBuffer) term.write(chunk);
+    for (const chunk of postBuffer) {
+      term.write(chunk);
+    }
     postBuffer = [];
   }
 
   return { term, finishBoot };
+}
+
+/* =========================================================
+   Real CRT barrel curvature — an SVG feDisplacementMap warp.
+
+   cool-retro-term bends the tube face with the sampling field
+   s = q + k·q·|q|²  (output pixels sample FARTHER OUT, so the picture
+   wraps around the bulge: edges compress, like a convex tube).
+   A bake of that field into a canvas texture drives feDisplacementMap;
+   the terminal renders with an overscan margin (like a real CRT, whose
+   raster is larger than the visible glass) so outward sampling at the
+   corners never clips characters.
+   ========================================================= */
+const WARP_STRENGTH = 0.022; // corner wrap, as a fraction of screen width
+
+let warpTimer = null;
+function applyCrtWarp() {
+  const warpEl = document.getElementById('warp');
+  if (!warpEl) return;
+  const rect = warpEl.getBoundingClientRect();
+  const w = Math.round(rect.width);
+  const h = Math.round(rect.height);
+  if (w < 40 || h < 40) return;
+
+  const maxDisp = Math.max(4, Math.round(WARP_STRENGTH * w));
+  const k = maxDisp / (0.25 * w); // so the extreme corner samples maxDisp px out
+  // Overscan margin: the source must extend past the visible tube face by at
+  // least the corner sampling distance, or corners would sample empty space.
+  const margin = maxDisp + 4;
+
+  // Bake the displacement field into an sRGB texture: R = 0.5 + dx/2M, G = 0.5 + dy/2M
+  const mw = 160;
+  const mh = Math.max(24, Math.round((160 * h) / w));
+  const c = document.createElement('canvas');
+  c.width = mw; c.height = mh;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(mw, mh);
+  for (let y = 0; y < mh; y++) {
+    const v = y / (mh - 1) - 0.5;
+    for (let x = 0; x < mw; x++) {
+      const u = x / (mw - 1) - 0.5;
+      const r2 = u * u + v * v;
+      const dx = k * u * r2 * w;   // outward: convex bulge
+      const dy = k * v * r2 * w;
+      const i = (y * mw + x) * 4;
+      img.data[i]     = Math.round((0.5 + dx / (2 * maxDisp)) * 255);
+      img.data[i + 1] = Math.round((0.5 + dy / (2 * maxDisp)) * 255);
+      img.data[i + 2] = 128;
+      img.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  let svg = document.getElementById('crtwarp-svg');
+  if (!svg) {
+    svg = document.createElementNS(SVG_NS, 'svg');
+    svg.id = 'crtwarp-svg';
+    svg.setAttribute('width', '0');
+    svg.setAttribute('height', '0');
+    svg.style.position = 'absolute';
+    svg.style.pointerEvents = 'none';
+    document.body.appendChild(svg);
+  }
+  // The filter region must cover the overscanned (bled) source, not just the
+  // visible box, so the corners can sample from beyond the tube face.
+  svg.innerHTML =
+    '<filter id="crtWarp" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">' +
+    '<feImage href="' + c.toDataURL() + '" result="map" x="' + (-margin) + '" y="' + (-margin) + '" width="' + (w + 2 * margin) + '" height="' + (h + 2 * margin) + '" preserveAspectRatio="none"/>' +
+    '<feDisplacementMap in="SourceGraphic" in2="map" scale="' + (2 * maxDisp) + '" xChannelSelector="R" yChannelSelector="G"/>' +
+    '</filter>';
+  warpEl.style.filter = 'url(#crtWarp)';
+  // Publish the overscan margin so #screen and the effect layers bleed their
+  // content beyond the visible glass for the warp to sample.
+  warpEl.style.setProperty('--overscan', '-' + margin + 'px');
+}
+
+function scheduleCrtWarp() {
+  clearTimeout(warpTimer);
+  warpTimer = setTimeout(applyCrtWarp, 150);
 }
 
 /* =========================================================

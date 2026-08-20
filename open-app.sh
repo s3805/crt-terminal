@@ -37,8 +37,11 @@ find_chrome() {
 }
 
 # ---- start the backend terminal server only if it isn't already running ----
+healthy() {
+  curl -s --max-time 1 http://127.0.0.1:7681/health | grep -q '"ok"'
+}
 OUR_PID=""
-if ! curl -s -o /dev/null --max-time 2 http://127.0.0.1:7681/health; then
+if ! healthy; then
   "$NODE" server.js >/tmp/crt1990-server.log 2>&1 &
   OUR_PID=$!
   sleep 1.5

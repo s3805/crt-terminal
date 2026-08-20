@@ -4,30 +4,39 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GREEN PHOSPHOR TERMINAL — MODEL CRT-1990</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/vendor/xterm/css/xterm.css" />
-  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/style.css?v=7" />
 </head>
 <body>
   <div id="monitor">
     <div id="bezel">
       <div id="crt">
-        <!-- The real terminal (POST sequence prints into this same screen) -->
-        <div id="terminal"></div>
-        <!-- CRT effect layers -->
-        <div class="layer scanlines"></div>
-        <div class="layer dotmatrix"></div>
-        <div class="layer vignette"></div>
-        <div class="layer flicker"></div>
-        <div class="layer glass"></div>
+        <!-- Warped tube face: terminal + effect layers all bend together -->
+        <div id="warp">
+          <!-- Overscanned screen area: renders larger than the visible glass
+               (like a real CRT raster) so the convex warp never clips text -->
+          <div id="screen">
+            <!-- The real terminal (POST sequence prints into this same screen) -->
+            <div id="terminal"></div>
+          </div>
+          <!-- CRT effect layers -->
+          <div class="layer scanlines"></div>
+          <div class="layer scanbeam"></div>
+          <div class="layer dotmatrix"></div>
+          <div class="layer noise"></div>
+          <div class="layer vignette"></div>
+          <div class="layer flicker"></div>
+          <div class="layer glass"></div>
+        </div>
         <!-- Keyboard-activation hint (hidden once focused) -->
         <div id="hint">▸ 点击屏幕任意处激活键盘 / CLICK TO ACTIVATE KEYBOARD</div>
+        <!-- Style-switch chip and toast (outside the warp: undistorted clicks) -->
+        <div id="stylechip" title="切换显示风格 (Ctrl+Shift+K)">◈ STYLE</div>
+        <div id="toast"></div>
       </div>
       <div id="panel">
         <div class="led"></div>
-        <span class="model">CRT-1990 · GREEN PHOSPHOR</span>
+        <span class="model" id="model" title="切换显示风格 (Ctrl+Shift+K)">CRT-1990 · GREEN PHOSPHOR</span>
         <span class="spacer"></span>
         <span class="stat" id="baud">9600 BAUD</span>
         <span class="stat" id="status">● ONLINE</span>
@@ -37,6 +46,6 @@
 
   <script src="/vendor/xterm/lib/xterm.js"></script>
   <script src="/vendor/addon-fit/lib/addon-fit.js"></script>
-  <script src="/terminal.js"></script>
+  <script src="/terminal.js?v=7"></script>
 </body>
 </html>

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Generate a 1990s green-phosphor CRT terminal app icon (1024x1024 PNG)."""
+import os
+
 from PIL import Image, ImageDraw, ImageFilter
 
 S = 1024
@@ -63,6 +65,6 @@ sd.rectangle([244, py, 288, py + 44], fill=(160, 255, 185, 255))  # cursor block
 img = Image.alpha_composite(img, screen)
 img = Image.alpha_composite(img, glow)   # glow on top
 
-OUT = "/Users/xugang/WorkBuddy/2026-08-19-23-34-41/crt-terminal/AppIcon_1024.png"
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "AppIcon_1024.png")
 img.save(OUT)
 print("wrote", OUT)
