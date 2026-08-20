@@ -26,16 +26,17 @@ mkdir -p "$RT/public"
 rsync -a server.js pty_bridge.py package.json package-lock.json "$RT/"
 rsync -a public/ "$RT/public/"
 
-# If the user keeps a copy of the app on the Desktop, refresh its code too
-# (keep its .chrome-profile and node_modules untouched).
-DESKTOP_APP="$HOME/Desktop/CRT-1990.app"
-if [ -d "$DESKTOP_APP" ]; then
-  echo "[build-app] syncing Desktop copy..."
-  cp "$DIR/CRT-1990.app/Contents/MacOS/launcher.sh" "$DESKTOP_APP/Contents/MacOS/launcher.sh"
-  cp "$DIR/CRT-1990.app/Contents/Resources/AppIcon.icns" "$DESKTOP_APP/Contents/Resources/AppIcon.icns"
-  cp "$RT/server.js" "$RT/pty_bridge.py" "$RT/package.json" "$DESKTOP_APP/Contents/Resources/runtime/"
-  cp "$RT/public/"* "$DESKTOP_APP/Contents/Resources/runtime/public/"
-  chmod +x "$DESKTOP_APP/Contents/MacOS/launcher.sh"
-fi
+# Refresh any installed copies of the app (Desktop and/or /Applications),
+# keeping their .chrome-profile and node_modules untouched.
+for DEST_APP in "$HOME/Desktop/CRT-1990.app" "/Applications/CRT-1990.app"; do
+  if [ -d "$DEST_APP" ]; then
+    echo "[build-app] syncing $DEST_APP ..."
+    cp "$DIR/CRT-1990.app/Contents/MacOS/launcher.sh" "$DEST_APP/Contents/MacOS/launcher.sh"
+    cp "$DIR/CRT-1990.app/Contents/Resources/AppIcon.icns" "$DEST_APP/Contents/Resources/AppIcon.icns"
+    cp "$RT/server.js" "$RT/pty_bridge.py" "$RT/package.json" "$DEST_APP/Contents/Resources/runtime/"
+    cp "$RT/public/"* "$DEST_APP/Contents/Resources/runtime/public/"
+    chmod +x "$DEST_APP/Contents/MacOS/launcher.sh"
+  fi
+done
 
 echo "[build-app] done."
