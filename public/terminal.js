@@ -295,12 +295,18 @@ function initTerminal() {
    raster is larger than the visible glass) so outward sampling at the
    corners never clips characters.
    ========================================================= */
-const WARP_STRENGTH = 0.022; // corner wrap, as a fraction of screen width
+const WARP_STRENGTH = 0;     // 桶形畸变强度;0 = 关闭(0.022 为典型凸面曲率)
 
 let warpTimer = null;
 function applyCrtWarp() {
   const warpEl = document.getElementById('warp');
   if (!warpEl) return;
+  if (WARP_STRENGTH <= 0) {
+    // Curvature disabled: render flat, no overscan margin.
+    warpEl.style.filter = 'none';
+    warpEl.style.removeProperty('--overscan');
+    return;
+  }
   const rect = warpEl.getBoundingClientRect();
   const w = Math.round(rect.width);
   const h = Math.round(rect.height);

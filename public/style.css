@@ -67,19 +67,17 @@ html, body {
     inset 0 0 14px rgba(0,0,0,.9),
     inset 0 0 130px rgba(0,0,0,.55),
     0 0 70px rgba(var(--glow-rgb), var(--ambient-o)); /* ambient light spill onto the bezel */
-  /* Barrel curvature now comes from the SVG displacement filter on #warp;
-     a hair of extra scale hides any 1px edge artifacts from the warp. */
-  transform: scale(1.012);
+  /* Curvature is off by default (see WARP_STRENGTH in terminal.js); the
+     rounded bezel alone shapes the tube. */
+  transform: none;
   transform-origin: center center;
 }
 
-/* The warped tube face — terminal + all effect layers bend together. */
+/* The warped tube face — terminal + effect layers bend together.
+   terminal.js applies filter: url(#crtWarp) only when curvature is on. */
 #warp {
   position: absolute;
   inset: 0;
-  will-change: filter;
-  /* Applied by terminal.js once the displacement map is generated:
-     filter: url(#crtWarp); */
 }
 
 /* Overscanned screen area: bleeds past the visible glass by --overscan so
