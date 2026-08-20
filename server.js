@@ -51,6 +51,7 @@ function findShell() {
 }
 
 wss.on('connection', (ws, req) => {
+  const ts = () => new Date().toISOString().slice(11, 19);
   const ip = req.socket.remoteAddress;
   // Safety: only accept loopback connections
   if (ip !== '127.0.0.1' && ip !== '::1' && ip !== '::ffff:127.0.0.1') {
@@ -86,7 +87,20 @@ wss.on('connection', (ws, req) => {
     HOME: process.env.HOME || require('os').homedir(),
   });
 
-  console.log('[crt-terminal] session shell: ' + shell);
+  console.log(`[${ts()}] session shell: ` + shell);
+
+  // Keepalive: after system sleep/wake a WebSocket can end up half-open —
+  // neither side notices, input goes nowhere and the screen looks frozen.
+  // Ping every 25s and terminate if two rounds go unanswered, so the client
+  // reconnects to a fresh session instead of hanging on a dead one.
+  ws._alive = true;
+  const heartbeat = setInterval(() => {
+    if (ws.readyState !== ws.OPEN) return;
+    if (ws._alive === false) { try { ws.terminate(); } catch (e) {} return; }
+    ws._alive = false;
+    try { ws.ping(); } catch (e) {}
+  }, 25000);
+  ws.on('pong', () => { ws._alive = true; });
 
   let child;
   try {
@@ -122,6 +136,8 @@ wss.on('connection', (ws, req) => {
   child.stderr.on('data', () => {}); // ignore bridge diagnostics
 
   child.on('exit', (code) => {
+    console.log(`[${ts()}] shell exited code=${code}`);
+    clearInterval(heartbeat);
     if (ws.readyState === ws.OPEN) {
       ws.send('\r\n\x1b[90m[connection closed — shell exited with code ' + code + ']\x1b[0m\r\n');
       ws.close();
@@ -148,6 +164,8 @@ wss.on('connection', (ws, req) => {
   });
 
   ws.on('close', () => {
+    console.log(`[${ts()}] ws closed`);
+    clearInterval(heartbeat);
     try { if (child.stdin) child.stdin.end(); } catch (e) {}
     try { child.kill(); } catch (e) {}
   });

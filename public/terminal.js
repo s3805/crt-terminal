@@ -154,6 +154,7 @@ function initTerminal() {
 
   let ws = null;
   let wsReady = false;
+  let everConnected = false;  // true once the first connection has opened
   let inputBuffer = [];      // keystrokes typed before the socket is open
   let postBuffer = [];       // shell output arriving during the POST animation
   let booting = true;        // true until runBoot() finishes
@@ -187,6 +188,15 @@ function initTerminal() {
 
     ws.onopen = () => {
       wsReady = true;
+      if (everConnected) {
+        // A reconnect means the old session is gone and a fresh shell is
+        // starting. Reset the terminal: if the connection died mid-escape-
+        // sequence or mid-UTF-8-character, the parser state would otherwise
+        // garble everything written afterwards.
+        term.reset();
+        term.write('\x1b[32m[ 已重新连接 / RECONNECTED — 新会话已启动 ]\x1b[0m\r\n');
+      }
+      everConnected = true;
       statusEl.textContent = '● ONLINE';
       baudEl.textContent = term.cols + 'x' + term.rows + ' GREEN';
       if (inputBuffer.length) {
@@ -235,6 +245,13 @@ function initTerminal() {
   });
 
   connect();
+
+  // Chrome throttles timers in hidden windows (down to ~1/min), which delays
+  // the 3s reconnect loop. When the window becomes visible again — e.g. after
+  // the system slept — reconnect immediately instead of waiting for a timer.
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && ws && ws.readyState !== WebSocket.OPEN) connect();
+  });
 
   // --- Focus management: inside an iframe the screen must be clicked once
   //     before it captures the keyboard. Make that effortless. ---
