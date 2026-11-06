@@ -3,49 +3,161 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GREEN PHOSPHOR TERMINAL — MODEL CRT-1990</title>
+  <title>CRT-1990 PRO — 90s Retro Minicomputer Terminal</title>
   <link rel="stylesheet" href="/vendor/xterm/css/xterm.css" />
-  <link rel="stylesheet" href="/style.css?v=8" />
+  <link rel="stylesheet" href="/style.css?v=20" />
 </head>
-<body>
-  <div id="monitor">
-    <div id="bezel">
-      <div id="crt">
-        <!-- Warped tube face: terminal + effect layers all bend together -->
-        <div id="warp">
-          <!-- Overscanned screen area: renders larger than the visible glass
-               (like a real CRT raster) so the convex warp never clips text -->
-          <div id="screen">
-            <!-- The real terminal (POST sequence prints into this same screen) -->
-            <div id="terminal"></div>
-          </div>
-          <!-- CRT effect layers -->
-          <div class="layer scanlines"></div>
-          <div class="layer scanbeam"></div>
-          <div class="layer dotmatrix"></div>
-          <div class="layer noise"></div>
-          <div class="layer vignette"></div>
-          <div class="layer flicker"></div>
-          <div class="layer glass"></div>
-        </div>
-        <!-- Keyboard-activation hint (hidden once focused) -->
-        <div id="hint">▸ 点击屏幕任意处激活键盘 / CLICK TO ACTIVATE KEYBOARD</div>
-        <!-- Style-switch chip and toast (outside the warp: undistorted clicks) -->
-        <div id="stylechip" title="切换显示风格 (Ctrl+Shift+K)">◈ STYLE</div>
-        <div id="toast"></div>
+<body class="desktop-env">
+  <!-- Desk ambient lighting & shadow container -->
+  <div id="desk-wrapper">
+    <!-- Monitor Outer Cabinet -->
+    <div id="monitor" class="chassis-beige">
+      <!-- Top Ventilation Grille -->
+      <div class="top-grille">
+        <div class="vent-slot"></div>
+        <div class="vent-slot"></div>
+        <div class="vent-slot"></div>
+        <div class="vent-slot"></div>
+        <div class="vent-slot"></div>
+        <div class="vent-slot"></div>
+        <div class="vent-slot"></div>
+        <div class="vent-slot"></div>
       </div>
-      <div id="panel">
-        <div class="led"></div>
-        <span class="model" id="model" title="切换显示风格 (Ctrl+Shift+K)">CRT-1990 · GREEN PHOSPHOR</span>
-        <span class="spacer"></span>
-        <span class="stat" id="baud">9600 BAUD</span>
-        <span class="stat" id="status">● ONLINE</span>
+
+      <!-- Main Bezel Frame -->
+      <div id="bezel">
+        <!-- Top Bezel Area with Metallic Badge -->
+        <div class="bezel-top-bar">
+          <div class="brand-badge">
+            <span class="badge-logo">TRINITRON</span>
+            <span class="badge-sub">MULTISCAN · 17sf</span>
+          </div>
+          <div class="top-right-decor">
+            <span class="crt-spec">HIGH RESOLUTION COLOR DISPLAY</span>
+          </div>
+        </div>
+
+        <!-- Deep Recessed Inner Tube Housing -->
+        <div class="tube-housing">
+          <div id="crt" class="curved-tube">
+            <!-- Warped tube face -->
+            <div id="warp">
+              <!-- Overscanned screen area -->
+              <div id="screen">
+                <!-- Terminal buffer -->
+                <div id="terminal"></div>
+              </div>
+
+              <!-- Optical CRT physical layers -->
+              <div class="layer rgb-mask"></div>
+              <div class="layer scanlines"></div>
+              <div class="layer scanbeam"></div>
+              <div class="layer dotmatrix"></div>
+              <div class="layer noise"></div>
+              <div class="layer vignette"></div>
+              <div class="layer flicker"></div>
+              <div class="layer glass-glare"></div>
+              <div class="layer glass-curvature"></div>
+              <div class="layer tube-recess-shadow"></div>
+            </div>
+
+            <!-- CRT Power On / Off collapse effect -->
+            <div id="crt-power-fx">
+              <div class="collapse-line"></div>
+              <div class="collapse-dot"></div>
+            </div>
+
+            <!-- Degauss coil magnetic distortion layer -->
+            <div id="degauss-overlay"></div>
+
+            <!-- Hint overlay (hidden once user focuses) -->
+            <div id="hint">▸ 点击屏幕激活键盘输入 / CLICK TO FOCUS TERMINAL</div>
+            <div id="toast"></div>
+          </div>
+        </div>
+
+        <!-- Front Control Panel with Tactile Hardware -->
+        <div id="panel">
+          <!-- Power switch & LED cluster -->
+          <div class="panel-section power-cluster">
+            <button id="btn-power" class="tactile-switch power-on" title="开关电源 (Power Switch)">
+              <span class="switch-cap"></span>
+              <span class="switch-label">POWER</span>
+            </button>
+            <div class="led-indicator">
+              <div class="led" id="power-led"></div>
+              <span class="led-label">PILOT</span>
+            </div>
+          </div>
+
+          <div class="panel-divider"></div>
+
+          <!-- Degauss Button -->
+          <div class="panel-section">
+            <button id="btn-degauss" class="tactile-btn" title="消磁消色斑 (Degauss Coil - Ctrl+D)">
+              <span class="btn-icon">🧲</span>
+              <span class="btn-text">DEGAUSS</span>
+            </button>
+          </div>
+
+          <div class="panel-divider"></div>
+
+          <!-- Rotary Adjustment Knobs -->
+          <div class="panel-section knob-cluster">
+            <div class="knob-unit" id="unit-brightness" title="调节屏幕亮度 (Brightness)">
+              <div class="rotary-dial" id="dial-brightness">
+                <div class="dial-marker"></div>
+              </div>
+              <span class="knob-label">BRIGHT</span>
+            </div>
+
+            <div class="knob-unit" id="unit-contrast" title="调节字符对比度与辉光 (Contrast)">
+              <div class="rotary-dial" id="dial-contrast">
+                <div class="dial-marker"></div>
+              </div>
+              <span class="knob-label">CONTRAST</span>
+            </div>
+          </div>
+
+          <div class="panel-divider"></div>
+
+          <!-- Mode Selectors -->
+          <div class="panel-section mode-buttons">
+            <button id="btn-theme" class="pill-btn" title="切换荧光粉显示风格 (Ctrl+Shift+K)">
+              <span class="pill-dot">◈</span>
+              <span id="theme-name">GREEN P1</span>
+            </button>
+            <button id="btn-warp" class="pill-btn" title="切换球面凸出/纯平显像管">
+              <span id="warp-name">曲面管: 开</span>
+            </button>
+            <button id="btn-chassis" class="pill-btn" title="切换复古米黄/工程黑灰机壳 (Ctrl+Shift+B)">
+              <span id="chassis-name">机壳: 米黄</span>
+            </button>
+            <button id="btn-audio" class="pill-btn" title="切换继电器与消磁音效">
+              <span id="audio-name">🔊 音效: 开</span>
+            </button>
+          </div>
+
+          <div class="spacer"></div>
+
+          <!-- Hardware Status readout -->
+          <div class="panel-section status-readout">
+            <span class="stat-item" id="baud">80x24 9600 BAUD</span>
+            <span class="stat-item online-pill" id="status">● ONLINE</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Monitor Stand & Swivel Neck -->
+      <div class="monitor-stand">
+        <div class="stand-neck"></div>
+        <div class="stand-base"></div>
       </div>
     </div>
   </div>
 
   <script src="/vendor/xterm/lib/xterm.js"></script>
   <script src="/vendor/addon-fit/lib/addon-fit.js"></script>
-  <script src="/terminal.js?v=10"></script>
+  <script src="/terminal.js?v=20"></script>
 </body>
 </html>

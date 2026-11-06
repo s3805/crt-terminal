@@ -2,14 +2,19 @@
   "name": "crt-terminal",
   "version": "1.0.0",
   "description": "1990s minicomputer green phosphor terminal emulator with real local PTY",
-  "main": "server.js",
+  "main": "electron-main.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "desktop": "electron .",
+    "app": "electron ."
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/xterm": "^5.5.0",
     "express": "^4.19.2",
     "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "electron": "^45.2.3"
   }
 }

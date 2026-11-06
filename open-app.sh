@@ -1,12 +1,12 @@
 #!/bin/bash
-# Launch CRT-1990 as a standalone, borderless Chrome "app" window.
-# No address bar / tabs — it reads like a real appliance.
-# Double-click CRT-1990.app, or run:  bash open-app.sh
+# Launch CRT-1990 PRO as a 100% standalone desktop application.
+# Priority: Electron Standalone Window -> Chrome App Mode -> Default Browser.
+# Double-click CRT-1990.app, or run:  bash open-app.sh  or  npm run desktop
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DIR"
 
-# ---- locate a usable node binary (GUI apps get a minimal PATH) ----
+# ---- locate a usable node binary ----
 NODE=""
 for p in /usr/local/bin/node /opt/homebrew/bin/node /usr/bin/node "$HOME/.workbuddy/binaries/node/versions/22.22.2/bin/node"; do
   [ -x "$p" ] && NODE="$p" && break
@@ -17,7 +17,26 @@ if ! "$NODE" --version >/dev/null 2>&1; then
   exit 1
 fi
 
-# ---- locate Chrome / Chromium (macOS, Linux, generic) ----
+# 1. Preferred: Launch Electron Standalone Desktop Window (No Chrome required!)
+ELECTRON_BIN=""
+if [ -x "$DIR/node_modules/.bin/electron" ]; then
+  ELECTRON_BIN="$DIR/node_modules/.bin/electron"
+elif command -v electron >/dev/null 2>&1; then
+  ELECTRON_BIN="$(command -v electron)"
+fi
+
+if [ -n "$ELECTRON_BIN" ]; then
+  echo "[CRT-1990 PRO] 启动独立桌面应用 (Electron Standalone)..."
+  # Pass --no-sandbox if running under Linux container environments
+  if [ "$(uname -s)" = "Linux" ]; then
+    "$ELECTRON_BIN" --no-sandbox . "$@"
+  else
+    "$ELECTRON_BIN" . "$@"
+  fi
+  exit $?
+fi
+
+# 2. Fallback: Standalone Chrome App mode
 find_chrome() {
   local c
   for c in \
@@ -27,16 +46,13 @@ find_chrome() {
     "/usr/bin/google-chrome" "/usr/bin/google-chrome-stable" "/usr/bin/chromium" "/usr/bin/chromium-browser"; do
     [ -x "$c" ] && { echo "$c"; return 0; }
   done
-  # Spotlight on macOS
   c="$(mdfind "kMDItemCFBundleIdentifier == 'com.google.Chrome'" 2>/dev/null | head -1)"
   [ -n "$c" ] && [ -x "$c/Contents/MacOS/Google Chrome" ] && { echo "$c/Contents/MacOS/Google Chrome"; return 0; }
-  # PATH
   c="$(command -v google-chrome google-chrome-stable chromium chromium-browser 2>/dev/null | head -1)"
   [ -n "$c" ] && { echo "$c"; return 0; }
   return 1
 }
 
-# ---- start the backend terminal server only if it isn't already running ----
 healthy() {
   curl -s --max-time 1 http://127.0.0.1:7681/health | grep -q '"ok"'
 }
@@ -51,8 +67,7 @@ CHROME="$(find_chrome || true)"
 PROFILE="$DIR/.chrome-profile"
 
 if [ -n "$CHROME" ]; then
-  # Force a fresh, isolated Chrome instance so --app mode is honored and the
-  # whole thing quits cleanly when the window is closed.
+  echo "[CRT-1990 PRO] 未检测到 Electron，使用 Chrome 应用模式启动..."
   "$CHROME" --user-data-dir="$PROFILE" \
     --no-first-run --no-default-browser-check \
     --app=http://127.0.0.1:7681 \
@@ -60,15 +75,11 @@ if [ -n "$CHROME" ]; then
   CHROME_PID=$!
   wait "$CHROME_PID"
 else
-  echo "未找到 Google Chrome/Chromium，改用默认浏览器打开（非全屏独立窗口）。"
-  echo "建议安装 Chrome 以获得完整体验：https://www.google.com/chrome/"
+  echo "[CRT-1990 PRO] 改用系统默认浏览器打开..."
   open http://127.0.0.1:7681 2>/dev/null || xdg-open http://127.0.0.1:7681 2>/dev/null
-  # cannot track a default-browser window, just leave the server running
-  echo "已在默认浏览器打开。关闭浏览器页面后，后端仍在运行（可执行 bash stop.sh 关闭）。"
   exit 0
 fi
 
-# Chrome window closed — tear down the server we started (if any).
 if [ -n "$OUR_PID" ]; then
   kill "$OUR_PID" 2>/dev/null
 fi
