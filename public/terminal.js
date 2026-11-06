@@ -680,7 +680,8 @@ function initSystem() {
 
   function connect() {
     if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
-    ws = new WebSocket('ws://' + WS_HOST + '/pty');
+    const proto = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
+    ws = new WebSocket(proto + '//' + WS_HOST + '/pty');
     ws.binaryType = 'arraybuffer';
 
     ws.onopen = () => {

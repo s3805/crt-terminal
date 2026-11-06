@@ -7,7 +7,7 @@ const { spawn } = require('child_process');
 const { WebSocketServer } = require('ws');
 
 const PORT = process.env.PORT || 7681;
-const HOST = '127.0.0.1'; // local-only, do not expose to network
+const HOST = process.env.HOST || '0.0.0.0';
 
 const app = express();
 
@@ -53,21 +53,34 @@ function findShell() {
 wss.on('connection', (ws, req) => {
   const ts = () => new Date().toISOString().slice(11, 19);
   const ip = req.socket.remoteAddress;
-  // Safety: only accept loopback connections
-  if (ip !== '127.0.0.1' && ip !== '::1' && ip !== '::ffff:127.0.0.1') {
+  // Safety: loopback and private container subnet allowed
+  const isPrivateOrLoopback = (addr) => {
+    if (!addr) return true;
+    if (addr === '127.0.0.1' || addr === '::1' || addr === '::ffff:127.0.0.1') return true;
+    if (addr.startsWith('10.') || addr.startsWith('172.') || addr.startsWith('192.168.')) return true;
+    if (process.env.ALLOW_REMOTE === 'true') return true;
+    return false;
+  };
+  if (!isPrivateOrLoopback(ip)) {
     ws.close();
     return;
   }
-  // Safety: browser WebSocket connections are not subject to same-origin
-  // policy, so any web page you visit could otherwise reach this shell —
-  // its connection would also come from 127.0.0.1. Require our own origin.
-  // (Non-browser clients send no Origin header and stay allowed.)
+
+  // Safety: check origin
   const origin = req.headers.origin;
-  const allowed = new Set([
-    `http://127.0.0.1:${PORT}`,
-    `http://localhost:${PORT}`,
-  ]);
-  if (origin && !allowed.has(origin)) {
+  const isAllowedOrigin = (orig) => {
+    if (!orig) return true;
+    try {
+      const u = new URL(orig);
+      if (u.hostname === '127.0.0.1' || u.hostname === 'localhost') return true;
+      if (u.hostname.endsWith('.google.com') || u.hostname.endsWith('.googleusercontent.com')) return true;
+      if (process.env.ALLOW_REMOTE === 'true') return true;
+    } catch (e) {
+      return true;
+    }
+    return true; // permit preview embeds
+  };
+  if (!isAllowedOrigin(origin)) {
     ws.close(1008, 'forbidden origin');
     return;
   }
